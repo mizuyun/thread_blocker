@@ -1,0 +1,45 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tags matching v*, i.e. v1.0.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: npm install -g web-ext
+
+    - name: Build Chrome Extension
+      run: |
+        mkdir -p build/chrome
+        cp -r manifest.json content.js styles.css icon.png build/chrome/
+        cd build/chrome
+        zip -r ../../threads-blocker-chrome.zip ./*
+
+    - name: Build Firefox Extension
+      run: |
+        mkdir -p build/firefox
+        cp -r manifest.json content.js styles.css icon.png build/firefox/
+        cd build/firefox
+        zip -r ../../threads-blocker-firefox.zip ./*
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          threads-blocker-chrome.zip
+          threads-blocker-firefox.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
