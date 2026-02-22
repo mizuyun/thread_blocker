@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Threads Quick Blocker",
+  "version": "1.0",
+  "description": "Quickly block users on Threads directly from their posts.",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.threads.net/*",
+    "*://*.threads.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.threads.net/*", "*://*.threads.com/*"],
+      "css": ["styles.css"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["*://*.threads.net/*", "*://*.threads.com/*"]
+    }
+  ]
+}
