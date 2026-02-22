@@ -3,7 +3,7 @@
 // Inject inject.js into the main world to access variables like fb_dtsg and lsd
 const script = document.createElement('script');
 script.src = chrome.runtime.getURL('inject.js');
-script.onload = function() {
+script.onload = function () {
   this.remove();
 };
 (document.head || document.documentElement).appendChild(script);
@@ -40,6 +40,8 @@ const observer = new MutationObserver((mutations) => {
 });
 
 function processNode(node) {
+  if (node.closest && node.closest('.threads-quick-block-btn')) return;
+
   const moreWrappers = node.querySelectorAll ? node.querySelectorAll(MORE_BUTTON_WRAPPER_SELECTOR) : [];
   if (node.matches && node.matches(MORE_BUTTON_WRAPPER_SELECTOR)) {
     addBlockButton(node);
@@ -48,26 +50,28 @@ function processNode(node) {
 }
 
 function addBlockButton(moreWrapper) {
+  if (moreWrapper.closest && moreWrapper.closest('.threads-quick-block-btn')) return;
+
   // Check if we already added a button next to this More wrapper
-  if (moreWrapper.parentNode.querySelector('.threads-quick-block-btn')) {
+  if (moreWrapper.parentNode && moreWrapper.parentNode.querySelector('.threads-quick-block-btn')) {
     return;
   }
 
   const container = moreWrapper.parentNode;
-  
+
   // Try to find the closest element denoting the user context
   // Usually this corresponds to the closest article or post container
-  
+
   const blockBtn = document.createElement('div');
   blockBtn.className = 'threads-quick-block-btn x1i10hfl x1qjc9v5 xjbqb8w xjqpnuy xc5r6h4 xqeqjp1 x1phubyo x13fuv20 x18b5jzi x1q0q8m5 x1t7ytsu x972fbf x10w94by x1qhh985 x14e42zd x9f619 x1ypdohk xdl72j9 x2lah0s x3ct3a4 xdj266r x14z9mp xat24cr x1lziwak x2lwn1j xeuugli xexx8yu xyri2b x18d9i69 x1c1uobl x1n2onr6 x16tdsg8 x1hl2dhg xggy1nq x1ja2u2z x1t137rt x3nfvp2 x1q0g3np x87ps6o x1lku1pv x1a2a7pz x15dp1bm x1pg3x37 xqi6p0a x102ru31';
   blockBtn.role = 'button';
   blockBtn.tabIndex = 0;
   blockBtn.title = 'Quick Block';
-  
+
   // Create an inner wrapper similar to the More button
   const innerWrapper = document.createElement('div');
   innerWrapper.className = 'x6s0dn4 x15dp1bm x1pg3x37 xqi6p0a x102ru31 x78zum5 xl56j7k x1n2onr6 x3oybdh xx6bhzk x12w9bfk x11xpdln x1qx5ct2 xw4jnvo';
-  
+
   // SVG Icon for Block (Circle with a line)
   innerWrapper.innerHTML = `
     <svg aria-label="Block" role="img" viewBox="0 0 24 24" class="x1lliihq x2lah0s x1n2onr6 x19zyb68 x16ye13r x5lhr3w x1gaogpn block-icon-svg" style="--x-fill: currentColor; --x-height: 20px; --x-width: 20px;">
@@ -91,7 +95,7 @@ function addBlockButton(moreWrapper) {
     // However, finding the exact user_id from DOM is tricky.
     // Threads React Fiber objects usually hold the user_id for the post.
     // We pass a message to the inject.js script with a unique class path or we let inject.js do the lookup.
-    
+
     // As a robust approach, let's find the nearest post container and use its React Fiber node from inject.js.
     // We add a temporary class so inject.js can find exactly this button, navigate up to the React Fiber node, and extract the user.
     const tempId = 'block-btn-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
