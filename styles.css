@@ -1,7 +1,7 @@
 /* styles.css */
 .threads-quick-block-btn {
   /* Inherit layout from siblings implicitly via the injected classes */
-  margin-right: 16px;
+  margin-right: 24px !important;
   /* Increased gap between block and more */
   transition: opacity 0.2s ease, color 0.2s ease;
 }

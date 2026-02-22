@@ -55,7 +55,7 @@ function findUserIdInFiber(fiber) {
             const props = current.memoizedProps || current.pendingProps;
             if (props) {
                 // Threads posts usually have a `post` or `threadItem` object
-                const post = props.post || props.threadItem || props.item;
+                const post = props.post || props.threadItem || props.item || props.result;
                 if (post && post.user && post.user.id) {
                     return post.user.id;
                 }
@@ -64,6 +64,10 @@ function findUserIdInFiber(fiber) {
                 if (props.user && props.user.id) {
                     return props.user.id;
                 }
+
+                // specific link checks
+                if (props.href && props.userID) return props.userID;
+                if (props.href && props.hovercard_user_id) return props.hovercard_user_id;
             }
         } catch (e) {
             // Ignore
@@ -155,38 +159,48 @@ window.addEventListener('message', async (event) => {
         return;
     }
 
-    // Go up the DOM tree from the button to find a React Fiber node
-    let currentElement = button;
-    let userId = null;
-
-    // Search up to 50 levels deep to find Fiber node holding post info
-    for (let i = 0; i < 50; i++) {
-        if (!currentElement) break;
-        const fiber = getReactFiber(currentElement);
-        if (fiber) {
-            userId = findUserIdInFiber(fiber);
-            if (userId) break;
+    // Strategy 1: Find the closest common ancestor container that holds the author link
+    let container = button;
+    let authorLinks = [];
+    while (container && container !== document.body) {
+        // Look for links that start with /@ and are not post links (don't contain /post/)
+        authorLinks = Array.from(container.querySelectorAll('a[href^="/@"]')).filter(a => !a.href.includes('/post/'));
+        if (authorLinks.length > 0) {
+            break;
         }
-        currentElement = currentElement.parentElement;
+        container = container.parentElement;
     }
 
-    // Fallback: If not found, try to find the author's profile link near this button
-    if (!userId) {
-        let container = button.closest('.x1xdureb') || button.closest('article') || document.body;
-        // Search up from the container a bit if it's too specific
-        for (let i = 0; i < 5; i++) {
-            if (!container) break;
-            const links = container.querySelectorAll('a[href^="/@"]');
-            for (const link of links) {
-                // Do not parse post links, only profile ones if possible, but any might contain the user object
-                const fiber = getReactFiber(link);
-                if (fiber) {
-                    userId = findUserIdInFiber(fiber);
+    // Now extract from the container's Fiber or the author link's Fiber
+    let userId = null;
+    if (container && authorLinks.length > 0) {
+        // Try the container itself first
+        let fiber = getReactFiber(container);
+        if (fiber) userId = findUserIdInFiber(fiber);
+
+        // Try the author links if container didn't have it
+        if (!userId) {
+            for (const link of authorLinks) {
+                let f = getReactFiber(link);
+                if (f) {
+                    userId = findUserIdInFiber(f);
                     if (userId) break;
                 }
             }
-            if (userId) break;
-            container = container.parentElement;
+        }
+    }
+
+    // Strategy 2: Search up to 50 levels deep (Original method)
+    if (!userId) {
+        let currentElement = button;
+        for (let i = 0; i < 50; i++) {
+            if (!currentElement) break;
+            const fiber = getReactFiber(currentElement);
+            if (fiber) {
+                userId = findUserIdInFiber(fiber);
+                if (userId) break;
+            }
+            currentElement = currentElement.parentElement;
         }
     }
 
