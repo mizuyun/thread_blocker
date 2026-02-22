@@ -1,29 +1,6 @@
 /* content.js */
 
-// Inject inject.js into the main world to access variables like fb_dtsg and lsd
-const script = document.createElement('script');
-script.src = chrome.runtime.getURL('inject.js');
-script.onload = function () {
-  this.remove();
-};
-(document.head || document.documentElement).appendChild(script);
-
-// Listen for messages from the injected script
-window.addEventListener('message', (event) => {
-  if (event.source !== window || !event.data || event.data.type !== 'THREADS_QUICK_BLOCK_RESULT') {
-    return;
-  }
-
-  if (event.data.success) {
-    // Optionally show a toast or change the button state on success
-    console.log("Block successful:", event.data.response);
-  } else {
-    console.error("Block failed:", event.data.error);
-    alert("Failed to block user. See console for details.");
-  }
-});
-
-// Selector for the "More" button wrap around a post
+// Selector for the "More" button inner wrapped SVG element in a post
 const MORE_BUTTON_WRAPPER_SELECTOR = '.x6s0dn4.x15dp1bm.x1pg3x37.xqi6p0a.x102ru31.x78zum5.xl56j7k.x1n2onr6.x3oybdh.xx6bhzk.x12w9bfk.x11xpdln.x1qx5ct2.xw4jnvo';
 
 // Observe DOM mutations to add the block button to new posts
@@ -49,30 +26,132 @@ function processNode(node) {
   moreWrappers.forEach(addBlockButton);
 }
 
-function addBlockButton(moreWrapper) {
-  if (moreWrapper.closest && moreWrapper.closest('.threads-quick-block-btn')) return;
+// Function to find the block menu item by its distinct SVG path
+function findBlockMenuItem() {
+  const svgs = document.querySelectorAll('svg');
+  for (const svg of svgs) {
+    const path = svg.querySelector('path');
+    if (path) {
+      const d = path.getAttribute('d');
+      // Look for the specific SVG path used for the "Block" (封鎖) menu item
+      if (d && d.startsWith('M12 1C18.0751 1 23 5.92487 23 12')) {
+        // The clickable menu item is typically a few levels up
+        const menuItem = svg.closest('[role="button"], [role="menuitem"]');
+        if (menuItem) return menuItem;
+      }
+    }
+  }
+  return null;
+}
 
-  // Check if we already added a button next to this More wrapper
-  if (moreWrapper.parentNode && moreWrapper.parentNode.querySelector('.threads-quick-block-btn')) {
+// Function to find the final confirm button in the dialog
+function findConfirmBlockButton() {
+  const dialogs = document.querySelectorAll('[role="dialog"]');
+  if (dialogs.length === 0) return null;
+
+  // Get the last dialog which should be the top-most one
+  const dialog = dialogs[dialogs.length - 1];
+
+  // Find all buttons in the dialog
+  const buttons = dialog.querySelectorAll('[role="button"]');
+
+  // We look for the one that says "Block" or "封鎖"
+  for (const btn of buttons) {
+    const text = btn.innerText.trim().toLowerCase();
+    if (text.includes('封鎖') || text.includes('block') || text === 'bloquear') {
+      return btn;
+    }
+  }
+
+  return null;
+}
+
+// Helper to delay execution
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
+async function simulateBlockFlow(moreBtn) {
+  try {
+    if (!moreBtn) {
+      console.error("Could not find clickable More button");
+      return false;
+    }
+
+    // 1. Simulate UI native click on More button
+    moreBtn.click();
+    console.log("Clicked More button");
+
+    // 2. Wait for Menu to appear and find "Block" option
+    let blockMenuItem = null;
+    let retries = 0;
+    while (!blockMenuItem && retries < 20) { // Wait up to 2 seconds
+      await delay(100);
+      blockMenuItem = findBlockMenuItem();
+      retries++;
+    }
+
+    if (!blockMenuItem) {
+      console.error("Block menu item not found");
+      return false;
+    }
+
+    // Click "Block" from menu
+    blockMenuItem.click();
+    console.log("Clicked Block menu item");
+
+    // 3. Wait for Dialog to appear and find "Confirm Block" button
+    let confirmBtn = null;
+    retries = 0;
+    while (!confirmBtn && retries < 20) { // Wait up to 2 seconds
+      await delay(100);
+      confirmBtn = findConfirmBlockButton();
+      retries++;
+    }
+
+    if (!confirmBtn) {
+      console.error("Confirm block button not found in dialog");
+      return false;
+    }
+
+    // Click confirm
+    confirmBtn.click();
+    console.log("Clicked Confirm block");
+
+    return true;
+  } catch (error) {
+    console.error("Error during block flow simulation:", error);
+    return false;
+  }
+}
+
+function addBlockButton(moreWrapperInner) {
+  // Find the actual button role element for the "More" button
+  const moreBtn = moreWrapperInner.closest('[role="button"]');
+  if (!moreBtn) return;
+
+  if (moreBtn.closest('.threads-quick-block-btn')) return;
+
+  // Check if we already injected next to this moreBtn
+  if (moreBtn.parentNode && moreBtn.parentNode.querySelector('.threads-quick-block-btn')) {
     return;
   }
 
-  const container = moreWrapper.parentNode;
-
-  // Try to find the closest element denoting the user context
-  // Usually this corresponds to the closest article or post container
+  const container = moreBtn.parentNode;
 
   const blockBtn = document.createElement('div');
-  blockBtn.className = 'threads-quick-block-btn x1i10hfl x1qjc9v5 xjbqb8w xjqpnuy xc5r6h4 xqeqjp1 x1phubyo x13fuv20 x18b5jzi x1q0q8m5 x1t7ytsu x972fbf x10w94by x1qhh985 x14e42zd x9f619 x1ypdohk xdl72j9 x2lah0s x3ct3a4 xdj266r x14z9mp xat24cr x1lziwak x2lwn1j xeuugli xexx8yu xyri2b x18d9i69 x1c1uobl x1n2onr6 x16tdsg8 x1hl2dhg xggy1nq x1ja2u2z x1t137rt x3nfvp2 x1q0g3np x87ps6o x1lku1pv x1a2a7pz x15dp1bm x1pg3x37 xqi6p0a x102ru31';
+  // Use the same structural classes as the More button itself for native-like appearance
+  blockBtn.className = moreBtn.className + ' threads-quick-block-btn';
+
+  // Remove trailing classes related to interactions that might duplicate bindings or states if any
+  // But copy role and tabIndex
   blockBtn.role = 'button';
   blockBtn.tabIndex = 0;
   blockBtn.title = 'Quick Block';
 
-  // Create an inner wrapper similar to the More button
+  // Inner wrapper mimicking the structure
   const innerWrapper = document.createElement('div');
-  innerWrapper.className = 'x6s0dn4 x15dp1bm x1pg3x37 xqi6p0a x102ru31 x78zum5 xl56j7k x1n2onr6 x3oybdh xx6bhzk x12w9bfk x11xpdln x1qx5ct2 xw4jnvo';
+  innerWrapper.className = moreWrapperInner.className;
 
-  // SVG Icon for Block (Circle with a line)
+  // SVG Icon for Block (Circle with a diagonally crossing line)
   innerWrapper.innerHTML = `
     <svg aria-label="Block" role="img" viewBox="0 0 24 24" class="x1lliihq x2lah0s x1n2onr6 x19zyb68 x16ye13r x5lhr3w x1gaogpn block-icon-svg" style="--x-fill: currentColor; --x-height: 20px; --x-width: 20px;">
       <title>Block</title>
@@ -82,39 +161,28 @@ function addBlockButton(moreWrapper) {
 
   blockBtn.appendChild(innerWrapper);
 
-  blockBtn.addEventListener('click', (e) => {
+  blockBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     e.preventDefault();
 
-    // Disable button to prevent multi-clicks
+    // Visual feedback
     blockBtn.style.pointerEvents = 'none';
     blockBtn.style.opacity = '0.5';
 
-    // We need to find the user_id associated with this post.
-    // The user's DOM provided in the prompt structure has a link like href="/@lovelegolas66"
-    // However, finding the exact user_id from DOM is tricky.
-    // Threads React Fiber objects usually hold the user_id for the post.
-    // We pass a message to the inject.js script with a unique class path or we let inject.js do the lookup.
+    const success = await simulateBlockFlow(moreBtn);
 
-    // As a robust approach, let's find the nearest post container and use its React Fiber node from inject.js.
-    // We add a temporary class so inject.js can find exactly this button, navigate up to the React Fiber node, and extract the user.
-    const tempId = 'block-btn-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    blockBtn.setAttribute('data-block-id', tempId);
-
-    window.postMessage({
-      type: 'THREADS_QUICK_BLOCK_REQUEST',
-      blockId: tempId
-    }, '*');
-
-    // Re-enable after a timeout in case it fails silently
-    setTimeout(() => {
+    if (success) {
+      blockBtn.style.color = '#ff3040';
+      blockBtn.querySelector('title').textContent = 'Blocked';
+    } else {
+      // If it failed, revert the visual style so user can try again
       blockBtn.style.pointerEvents = 'auto';
       blockBtn.style.opacity = '1';
-    }, 3000);
+    }
   });
 
-  // Insert next to the "More" button wrap
-  container.insertBefore(blockBtn, moreWrapper);
+  // Insert before the more button, they are siblings in the wrapper so layouts line up nicely
+  container.insertBefore(blockBtn, moreBtn);
 }
 
 // Start observing
