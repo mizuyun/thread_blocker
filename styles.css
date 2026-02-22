@@ -1,11 +1,13 @@
 /* styles.css */
 .threads-quick-block-btn {
   /* Inherit layout from siblings implicitly via the injected classes */
-  margin-right: 8px; /* Little gap between block and more */
+  margin-right: 16px;
+  /* Increased gap between block and more */
   transition: opacity 0.2s ease, color 0.2s ease;
 }
 
 .threads-quick-block-btn:hover {
   opacity: 0.7;
-  color: #ff3040; /* Red tint on hover */
+  color: #ff3040;
+  /* Red tint on hover */
 }

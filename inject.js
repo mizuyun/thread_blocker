@@ -159,8 +159,8 @@ window.addEventListener('message', async (event) => {
     let currentElement = button;
     let userId = null;
 
-    // Search up to 10 levels deep
-    for (let i = 0; i < 15; i++) {
+    // Search up to 50 levels deep to find Fiber node holding post info
+    for (let i = 0; i < 50; i++) {
         if (!currentElement) break;
         const fiber = getReactFiber(currentElement);
         if (fiber) {
@@ -168,6 +168,26 @@ window.addEventListener('message', async (event) => {
             if (userId) break;
         }
         currentElement = currentElement.parentElement;
+    }
+
+    // Fallback: If not found, try to find the author's profile link near this button
+    if (!userId) {
+        let container = button.closest('.x1xdureb') || button.closest('article') || document.body;
+        // Search up from the container a bit if it's too specific
+        for (let i = 0; i < 5; i++) {
+            if (!container) break;
+            const links = container.querySelectorAll('a[href^="/@"]');
+            for (const link of links) {
+                // Do not parse post links, only profile ones if possible, but any might contain the user object
+                const fiber = getReactFiber(link);
+                if (fiber) {
+                    userId = findUserIdInFiber(fiber);
+                    if (userId) break;
+                }
+            }
+            if (userId) break;
+            container = container.parentElement;
+        }
     }
 
     if (!userId) {
@@ -179,6 +199,7 @@ window.addEventListener('message', async (event) => {
     }
 
     if (!userId) {
+        console.error("DOM at failure:", button.closest('.x1xdureb') ? button.closest('.x1xdureb').innerHTML : "No container");
         window.postMessage({ type: 'THREADS_QUICK_BLOCK_RESULT', success: false, error: 'Could not resolve user ID from Fiber' }, '*');
         return;
     }
