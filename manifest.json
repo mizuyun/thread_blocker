@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Threads Quick Blocker",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Quickly block users on Threads directly from their posts.",
   "icons": {
     "16": "icon.png",
