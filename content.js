@@ -17,7 +17,7 @@ const observer = new MutationObserver((mutations) => {
 });
 
 function processNode(node) {
-  if (node.closest && node.closest('.threads-quick-block-btn')) return;
+  if (node.closest && node.closest('[title="Quick Block"]')) return;
 
   const moreWrappers = node.querySelectorAll ? node.querySelectorAll(MORE_BUTTON_WRAPPER_SELECTOR) : [];
   if (node.matches && node.matches(MORE_BUTTON_WRAPPER_SELECTOR)) {
@@ -128,18 +128,24 @@ function addBlockButton(moreWrapperInner) {
   const moreBtn = moreWrapperInner.closest('[role="button"]');
   if (!moreBtn) return;
 
-  if (moreBtn.closest('.threads-quick-block-btn')) return;
+  // Ensure it's actually the "More" button and not another button like "Edited"
+  if (moreBtn.getAttribute('aria-haspopup') !== 'menu') return;
 
-  // Check if we already injected next to this moreBtn
-  if (moreBtn.parentNode && moreBtn.parentNode.querySelector('.threads-quick-block-btn')) {
+  if (moreBtn.closest('[title="Quick Block"]')) return;
+
+  const parentContainer = moreBtn.parentNode;
+  if (!parentContainer) return;
+  const grandParentContainer = parentContainer.parentNode;
+  if (!grandParentContainer) return;
+
+  // Check if we already injected in this grandparent
+  if (grandParentContainer.querySelector('[title="Quick Block"]')) {
     return;
   }
 
-  const container = moreBtn.parentNode;
-
   const blockBtn = document.createElement('div');
   // Use the same structural classes as the More button itself for native-like appearance
-  blockBtn.className = moreBtn.className + ' threads-quick-block-btn';
+  blockBtn.className = moreBtn.className;
 
   // Remove trailing classes related to interactions that might duplicate bindings or states if any
   // But copy role and tabIndex
@@ -181,8 +187,8 @@ function addBlockButton(moreWrapperInner) {
     }
   });
 
-  // Insert before the more button, they are siblings in the wrapper so layouts line up nicely
-  container.insertBefore(blockBtn, moreBtn);
+  // Insert before the parent of the more button, they are siblings in the grandparent container
+  grandParentContainer.insertBefore(blockBtn, parentContainer);
 }
 
 // Start observing
